@@ -1,20 +1,261 @@
-<h1 style="color:#148F77 "><b><i><center> Weather App&#127777 </i></b></center></h1>
-<center><input type='search' placeholder='enter the city ' id="city" class="search-bx" name='cityname'style= "width:50%;background-color: white;padding: 12px 20px;margin: 10px 0;display: inline-block;border: 1px solid green;border-radius: 6px;box-sizing: content-box "></center>
-<br>
-<center><button id="search-button"  style="color: yellow; background-color: grey">search</button><center>
-  <br>
-  <div>
-    <div id="location "  ></div>
-  <div id="temp" ></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: url('https://source.unsplash.com/1600x900/?clouds,sky') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 500px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 20px;
+            padding: 50px 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        h1 {
+            color: yellow;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2rem;
+        }
+
+        .search-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .search-bx {
+            width: 60%;
+            padding: 12px 20px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 6px;
+            background-color: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+        }
+
+        .search-bx:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        #search-button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #search-button:hover {
+            background-color: #45a049;
+        }
+
+        .weather-display {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #location, #temp, #weather, #min-max {
+            text-align: center;
+            margin: 15px 0;
+            font-size: 1.2rem;
+        }
+
+        #temp {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        #loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        #debug {
+            margin-top: 20px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        #toggle-debug {
+            display: block;
+            margin: 10px auto;
+            padding: 5px 10px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-cloud-sun"></i> Weather App</h1>
+
+        <div class="search-container">
+            <input type="search" placeholder="enter the city" id="city" class="search-bx" name="cityname">
+            <button id="search-button">search</button>
+        </div>
+
+        <div id="loading">
+            <i class="fas fa-spinner fa-spin"></i> Loading...
+        </div>
+
+        <div class="weather-display">
+            <div id="location"></div>
+            <div id="temp"></div>
+            <div id="weather"></div>
+            <div id="min-max"></div>
+        </div>
+
+        <button id="toggle-debug">Toggle Debug</button>
+        <div id="debug"></div>
     </div>
-  
-  <div >
-    <div id="weather"></div>
-    <div id="min-max" ></div>
-    
-    
-    </div>
-    
-  
-  
-    
+
+    <script>
+        // Select DOM elements
+        let city = document.querySelector(".search-bx");
+        const searchButton = document.getElementById("search-button");
+        const debugElement = document.getElementById("debug");
+        const toggleDebugButton = document.getElementById("toggle-debug");
+        const weatherDisplay = document.querySelector(".weather-display");
+        const loadingElement = document.getElementById("loading");
+
+        // API configuration
+        const apiData = {
+            url: `https://api.openweathermap.org/data/2.5/weather?q=`,
+            key: `ddaab7bb6806dca84596d29650677c8a` // Your provided API key
+        };
+
+        // Weather icons mapping
+        const weatherIcons = {
+            "Clear": "fas fa-sun",
+            "Clouds": "fas fa-cloud",
+            "Rain": "fas fa-cloud-rain",
+            "Drizzle": "fas fa-cloud-rain",
+            "Thunderstorm": "fas fa-bolt",
+            "Snow": "fas fa-snowflake",
+            "Mist": "fas fa-smog"
+        };
+
+        // Debug logging function
+        function logDebug(message) {
+            debugElement.innerHTML += message + "\n";
+            console.log(message);
+        }
+
+        // Fetch weather data
+        async function getWeather(countryName) {
+            try {
+                logDebug(`Fetching weather for: ${countryName}`);
+                loadingElement.style.display = "block";
+                weatherDisplay.style.opacity = "0";
+
+                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+                const apiUrl = `${apiData.url}${countryName}&appid=${apiData.key}&units=metric`;
+                const fullUrl = proxyUrl + apiUrl;
+                logDebug(`Trying URL with proxy: ${fullUrl}`);
+
+                const response = await fetch(fullUrl);
+                logDebug(`Response status: ${response.status}`);
+
+                if (response.status === 404) {
+                    document.getElementById("location").innerText = "City not found";
+                    document.getElementById("temp").innerText = "";
+                    document.getElementById("weather").innerText = "";
+                    document.getElementById("min-max").innerText = "";
+                    weatherDisplay.style.opacity = "1";
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                logDebug(`Data received: ${JSON.stringify(data).substring(0, 100)}...`);
+
+                document.getElementById("location").innerText = `${data.name}, ${data.sys.country}`;
+                document.getElementById("temp").innerText = `${Math.floor(data.main.temp)} °C`;
+
+                const weatherCondition = data.weather[0].main;
+                const iconClass = weatherIcons[weatherCondition] || "fas fa-question";
+                document.getElementById("weather").innerHTML = `<i class="${iconClass}"></i> ${weatherCondition}`;
+
+                document.getElementById("min-max").innerText = `${Math.floor(data.main.temp_min)} °C / ${Math.floor(data.main.temp_max)} °C`;
+
+                weatherDisplay.style.opacity = "1";
+                logDebug(`Weather data displayed successfully`);
+            } catch (error) {
+                logDebug(`Error: ${error.message}`);
+                document.getElementById("location").innerText = "Error fetching weather data";
+                document.getElementById("temp").innerText = "";
+                document.getElementById("weather").innerText = "";
+                document.getElementById("min-max").innerText = "";
+                weatherDisplay.style.opacity = "1";
+            } finally {
+                loadingElement.style.display = "none";
+            }
+        }
+
+        // Handle search button click
+        function searchData() {
+            const cityName = city.value.trim();
+            if (cityName) {
+                logDebug(`Search triggered for city: ${cityName}`);
+                getWeather(cityName);
+            } else {
+                logDebug("Please enter a city name");
+                document.getElementById("location").innerText = "Please enter a city name";
+                document.getElementById("temp").innerText = "";
+                document.getElementById("weather").innerText = "";
+                document.getElementById("min-max").innerText = "";
+                weatherDisplay.style.opacity = "1";
+            }
+        }
+
+        // Add event listeners
+        searchButton.addEventListener("click", searchData);
+        toggleDebugButton.addEventListener("click", () => {
+            debugElement.style.display = debugElement.style.display === "none" ? "block" : "none";
+        });
+
+        // Initial message
+        logDebug("Weather app initialized. Enter a city and click search.");
+    </script>
+</body>
+</html>
